@@ -1,0 +1,15 @@
+[Unit]
+Description=DevOps Flask App
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/devops-deploy-project
+EnvironmentFile=/etc/devops-app.env
+ExecStart=/home/ubuntu/devops-deploy-project/venv/bin/python app.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
