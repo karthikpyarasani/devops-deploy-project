@@ -16,6 +16,8 @@ def init_db():
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute("CREATE TABLE IF NOT EXISTS visits (id SERIAL PRIMARY KEY, ts TIMESTAMP DEFAULT NOW())")
 
+init_db()
+
 @app.route("/")
 def home():
     with get_conn() as conn, conn.cursor() as cur:
@@ -29,6 +31,4 @@ def health():
     return jsonify(status="ok")
 
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=5000)
-

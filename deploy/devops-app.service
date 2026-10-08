@@ -7,7 +7,7 @@ Requires=postgresql.service
 User=ubuntu
 WorkingDirectory=/home/ubuntu/devops-deploy-project
 EnvironmentFile=/etc/devops-app.env
-ExecStart=/home/ubuntu/devops-deploy-project/venv/bin/python app.py
+ExecStart=/home/ubuntu/devops-deploy-project/venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5000 app:app
 Restart=always
 RestartSec=3
 
