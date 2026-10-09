@@ -1,0 +1,110 @@
+---
+- name: Deploy devops app
+  hosts: webservers
+  become: true
+
+  vars:
+    app_user: ubuntu
+    app_dir: /home/ubuntu/devops-deploy-project
+    repo_url: https://github.com/karthikpyarasani/devops-deploy-project.git
+    db_name: appdb
+    db_user: appuser
+    db_password: apppass
+
+  tasks:
+    - name: Install system packages
+      ansible.builtin.apt:
+        name: [python3-venv, python3-pip, postgresql, git, nginx, acl, python3-psycopg2]
+        state: present
+        update_cache: true
+
+    - name: Make sure PostgreSQL is running
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Create database user
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+
+    - name: Create database
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        owner: "{{ db_user }}"
+
+    - name: Clone app code from GitHub
+      become_user: "{{ app_user }}"
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+
+    - name: Install Python packages in venv
+      become_user: "{{ app_user }}"
+      ansible.builtin.pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ app_dir }}/venv"
+        virtualenv_command: python3 -m venv
+
+    - name: Create environment file with DB settings
+      ansible.builtin.copy:
+        dest: /etc/devops-app.env
+        content: |
+          DB_HOST=localhost
+          DB_NAME={{ db_name }}
+          DB_USER={{ db_user }}
+          DB_PASSWORD={{ db_password }}
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart app
+
+    - name: Install systemd service file
+      ansible.builtin.copy:
+        src: "{{ app_dir }}/deploy/devops-app.service"
+        dest: /etc/systemd/system/devops-app.service
+        remote_src: true
+      notify: Restart app
+
+    - name: Start and enable the app
+      ansible.builtin.systemd:
+        name: devops-app
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Install Nginx site config
+      ansible.builtin.copy:
+        src: "{{ app_dir }}/deploy/nginx-devops-app.conf"
+        dest: /etc/nginx/sites-available/devops-app
+        remote_src: true
+      notify: Reload nginx
+
+    - name: Enable the site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/devops-app
+        dest: /etc/nginx/sites-enabled/devops-app
+        state: link
+      notify: Reload nginx
+
+    - name: Disable the default site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload nginx
+
+  handlers:
+    - name: Restart app
+      ansible.builtin.systemd:
+        name: devops-app
+        state: restarted
+        daemon_reload: true
+
+    - name: Reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
