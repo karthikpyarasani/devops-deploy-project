@@ -1,0 +1,6 @@
+---
+- name: Install system packages
+  ansible.builtin.apt:
+    name: [python3-venv, python3-pip, git, acl]
+    state: present
+    update_cache: true

@@ -1,0 +1,41 @@
+---
+- name: Clone app code from GitHub
+  become_user: "{{ app_user }}"
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ app_dir }}"
+    version: main
+
+- name: Install Python packages in venv
+  become_user: "{{ app_user }}"
+  ansible.builtin.pip:
+    requirements: "{{ app_dir }}/requirements.txt"
+    virtualenv: "{{ app_dir }}/venv"
+    virtualenv_command: python3 -m venv
+
+- name: Create environment file with DB settings
+  ansible.builtin.copy:
+    dest: /etc/devops-app.env
+    content: |
+      DB_HOST=localhost
+      DB_NAME={{ db_name }}
+      DB_USER={{ db_user }}
+      DB_PASSWORD={{ db_password }}
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart app
+
+- name: Install systemd service file
+  ansible.builtin.copy:
+    src: "{{ app_dir }}/deploy/devops-app.service"
+    dest: /etc/systemd/system/devops-app.service
+    remote_src: true
+  notify: Restart app
+
+- name: Start and enable the app
+  ansible.builtin.systemd:
+    name: devops-app
+    state: started
+    enabled: true
+    daemon_reload: true

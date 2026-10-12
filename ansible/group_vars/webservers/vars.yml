@@ -1,0 +1,6 @@
+app_user: ubuntu
+app_dir: /home/ubuntu/devops-deploy-project
+repo_url: https://github.com/karthikpyarasani/devops-deploy-project.git
+db_name: appdb
+db_user: appuser
+db_password: "{{ vault_db_password }}"
