@@ -24,7 +24,7 @@ def home():
         cur.execute("INSERT INTO visits DEFAULT VALUES")
         cur.execute("SELECT COUNT(*) FROM visits")
         count = cur.fetchone()[0]
-    return jsonify(message="Hello from my DevOps app!", visits=count)
+    return jsonify(message="Hello from my Dockerized app!", visits=count)
 
 @app.route("/health")
 def health():
