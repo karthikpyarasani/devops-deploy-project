@@ -7,7 +7,7 @@ DB_NAME="appdb"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 BACKUP_FILE="/tmp/${DB_NAME}_${TIMESTAMP}.sql.gz"
 
-sudo -u postgres pg_dump "$DB_NAME" | gzip > "$BACKUP_FILE"
+docker compose -f /home/ubuntu/devops-deploy-project/docker-compose.yml exec -T db pg_dump -U appuser "$DB_NAME" | gzip > "$BACKUP_FILE"
 aws s3 cp "$BACKUP_FILE" "s3://${BUCKET}/db-backups/"
 rm -f "$BACKUP_FILE"
 
