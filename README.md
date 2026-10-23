@@ -1,5 +1,7 @@
 # DevOps Deploy Project
 
+![CI](https://github.com/karthikpyarasani/devops-deploy-project/actions/workflows/ci.yml/badge.svg)
+
 A simple Python Flask + PostgreSQL app, deployed to AWS step by step: first by hand, then automated with Ansible, then containerised with Docker. The app is deliberately small; the focus is on **deployment, automation and operations**.
 
 ## Architecture (current)
