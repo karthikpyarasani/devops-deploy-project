@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: appuser
+          POSTGRES_PASSWORD: apppass
+          POSTGRES_DB: appdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U appuser -d appdb"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASSWORD: apppass
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt flake8 pytest
+
+      - name: Lint
+        run: flake8 app.py --max-line-length=120
+
+      - name: Run tests
+        run: python -m pytest -v
