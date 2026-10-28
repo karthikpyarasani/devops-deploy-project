@@ -88,6 +88,8 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           APP_TAG: ${{ github.sha }}
         run: |
+          EC2_HOST=$(echo "$EC2_HOST" | tr -d "[:space:]")
+          EC2_USER=$(echo "$EC2_USER" | tr -d "[:space:]")
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
