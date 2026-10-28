@@ -75,3 +75,21 @@ jobs:
           tags: |
             kaarthxk/devops-app:${{ github.sha }}
             kaarthxk/devops-app:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          APP_TAG: ${{ github.sha }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$EC2_USER@$EC2_HOST" \
+            "cd ~/devops-deploy-project && git pull && APP_TAG=$APP_TAG docker compose pull app && APP_TAG=$APP_TAG docker compose up -d app && sleep 5 && curl -fsS localhost:8000/health"
