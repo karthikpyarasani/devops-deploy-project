@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-north-1"
+  region = var.region
 }
 
 resource "aws_security_group" "web" {
@@ -20,7 +20,7 @@ resource "aws_security_group" "web" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["86.149.128.146/32"]
+    cidr_blocks = [var.my_ip]
   }
 
   ingress {
@@ -48,6 +48,37 @@ resource "aws_security_group" "web" {
 
   tags = {
     Name      = "tf-web-sg"
+    ManagedBy = "terraform"
+  }
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  }
+}
+
+resource "aws_instance" "web" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.web.id]
+
+  user_data = <<-EOF
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y docker.io
+    systemctl enable --now docker
+    usermod -aG docker ubuntu
+    docker run -d --name web -p 80:80 --restart unless-stopped nginx
+  EOF
+
+  tags = {
+    Name      = "tf-web-server"
     ManagedBy = "terraform"
   }
 }
