@@ -80,3 +80,61 @@ scripts/
 - [ ] CI/CD with GitHub Actions
 - [ ] Infrastructure as Code with Terraform
 - [ ] Kubernetes, Helm, Prometheus + Grafana
+
+## Part 3: CI/CD and Infrastructure as Code
+
+### Architecture
+
+```mermaid
+flowchart TB
+    dev["Developer laptop"] -- "git push" --> gh["GitHub repo"]
+    gh --> test & tf
+    subgraph ci["GitHub Actions CI/CD"]
+        test["test<br/>flake8 + pytest + Postgres"]
+        tf["terraform<br/>fmt + validate"]
+        build["build-and-push<br/>Docker image"]
+        deploy["deploy<br/>SSH + health check"]
+        test --> build --> deploy
+    end
+    build -- "push :sha + :latest" --> hub[("Docker Hub<br/>kaarthxk/devops-app")]
+    subgraph aws["AWS eu-north-1"]
+        subgraph ec2["EC2: devops-app-server"]
+            nginx["Nginx :80"] --> app["Flask + Gunicorn :8000<br/>container"] --> db[("PostgreSQL container<br/>pgdata volume")]
+            tfcli["Terraform CLI"]
+        end
+        s3[("S3 bucket<br/>Terraform state<br/>versioned + locked")]
+        tfweb["EC2: tf-web-server<br/>+ tf-web-sg"]
+    end
+    user["Users"] -- "HTTP :80" --> nginx
+    deploy -- "SSH: compose pull + up" --> app
+    hub -. "image pull" .-> app
+    tfcli -- "apply / destroy" --> tfweb
+    tfcli -- "read / write state" --> s3
+```
+
+### CI/CD pipeline (GitHub Actions)
+
+| Job | What it does |
+| --- | --- |
+| test | flake8 lint + pytest against a Postgres service container |
+| terraform | `terraform fmt -check`, `init -backend=false`, `validate` |
+| build-and-push | Builds the image and pushes `kaarthxk/devops-app:<commit-sha>` and `:latest` to Docker Hub |
+| deploy | SSH to EC2 with a dedicated deploy key, pull the new tag, restart the app, check `/health` |
+
+- Secrets live in GitHub Secrets, never in code: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`.
+- Rollback: `APP_TAG=<old-commit-sha> docker compose up -d app`
+
+### Infrastructure as Code (Terraform)
+
+- `terraform-bootstrap/` creates the S3 state bucket once (versioning, encryption, public access blocked, `prevent_destroy`).
+- `terraform/` builds a security group (SSH from my IP only, HTTP/HTTPS open) and an Ubuntu 24.04 EC2 instance. `user_data` installs Docker and starts nginx on first boot.
+- State is stored in S3 (`web/terraform.tfstate`) with S3 locking (`use_lockfile`).
+- AWS access comes from the EC2 instance's IAM role, so there are no access keys.
+
+```bash
+cd terraform
+terraform init
+terraform plan      # preview
+terraform apply     # build
+terraform destroy   # tear down
+```
